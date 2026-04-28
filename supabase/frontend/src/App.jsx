@@ -33,6 +33,10 @@ function App() {
     return summary.find((item) => item.metric === metric)?.value ?? '-'
   }
 
+  const downloadReport = (reportType) => {
+  window.open(`http://127.0.0.1:8000/reports/${reportType}`, '_blank')
+}
+
   const filteredPendingReview = pendingReview.filter((customer) => {
   const search = searchTerm.toLowerCase()
 
@@ -78,6 +82,50 @@ const filteredComparisonResults = comparisonResults.filter((customer) => {
               <SummaryCard title="Sellercloud customers" value={getValue('Sellercloud customers')} />
               <SummaryCard title="Bigin active contacts" value={getValue('Bigin active contacts')} />
               <SummaryCard title="Pending review" value={getValue('Pending review')} />
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Excel reports</h2>
+                  <p className="text-sm text-slate-500">
+                    Descarga reportes filtrados para revisión o análisis.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <ReportButton
+                  label="Sellercloud customers"
+                  reportType="sellercloud-customers"
+                  downloadReport={downloadReport}
+                />
+                <ReportButton
+                  label="Bigin active contacts"
+                  reportType="bigin-active-contacts"
+                  downloadReport={downloadReport}
+                />
+                <ReportButton
+                  label="Email and name match"
+                  reportType="email-and-name-match"
+                  downloadReport={downloadReport}
+                />
+                <ReportButton
+                  label="Email match, name different"
+                  reportType="email-match-name-different"
+                  downloadReport={downloadReport}
+                />
+                <ReportButton
+                  label="Name match, email different"
+                  reportType="name-match-email-different"
+                  downloadReport={downloadReport}
+                />
+                <ReportButton
+                  label="Pending review"
+                  reportType="pending-review"
+                  downloadReport={downloadReport}
+                />
+              </div>
             </div>
 
             <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
@@ -326,6 +374,17 @@ function StatusButton({ label, status, selectedStatus, setSelectedStatus }) {
       }`}
     >
       {label}
+    </button>
+  )
+}
+
+function ReportButton({ label, reportType, downloadReport }) {
+  return (
+    <button
+      onClick={() => downloadReport(reportType)}
+      className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:shadow-sm"
+    >
+      Download {label}
     </button>
   )
 }

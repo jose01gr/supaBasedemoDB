@@ -1,9 +1,13 @@
 import os
+from io import BytesIO
 
 import psycopg
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
+
 
 
 load_dotenv()
@@ -27,6 +31,27 @@ def get_connection():
 
     return psycopg.connect(DB_URL)
 
+def build_excel_response(filename, headers, rows):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Report"
+
+    sheet.append(headers)
+
+    for row in rows:
+        sheet.append(row)
+
+    stream = BytesIO()
+    workbook.save(stream)
+    stream.seek(0)
+
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
+    )
 
 @app.get("/health")
 def health():
@@ -160,3 +185,161 @@ def get_comparison_results():
         }
         for row in rows
     ]
+
+@app.get("/reports/{report_type}")
+def download_report(report_type: str):
+    report_queries = {
+        "sellercloud-customers": {
+            "filename": "sellercloud_customers.xlsx",
+            "headers": [
+                "Sellercloud Customer ID",
+                "Customer Name",
+                "Email",
+                "Sales Man",
+                "Phone",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  customer_name,
+                  email,
+                  sales_man,
+                  phone_1
+                from sellercloud_customers
+                order by customer_name;
+            """,
+        },
+        "bigin-active-contacts": {
+            "filename": "bigin_active_contacts.xlsx",
+            "headers": [
+                "Bigin Contact ID",
+                "Full Name",
+                "Email",
+                "Phone",
+                "Mobile",
+                "Owner",
+            ],
+            "sql": """
+                select
+                  bigin_contact_id,
+                  full_name,
+                  email,
+                  phone,
+                  mobile,
+                  owner_name
+                from bigin_contacts
+                order by full_name;
+            """,
+        },
+        "email-and-name-match": {
+            "filename": "email_and_name_match.xlsx",
+            "headers": [
+                "Sellercloud Customer ID",
+                "Sellercloud Name",
+                "Sellercloud Email",
+                "Bigin Contact ID",
+                "Bigin Name",
+                "Bigin Email",
+                "Status",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  bigin_contact_id_email,
+                  bigin_name_email,
+                  bigin_email_match,
+                  match_status
+                from customer_bigin_comparison_v2
+                where match_status = 'EMAIL_AND_NAME_MATCH'
+                order by sellercloud_name;
+            """,
+        },
+        "email-match-name-different": {
+            "filename": "email_match_name_different.xlsx",
+            "headers": [
+                "Sellercloud Customer ID",
+                "Sellercloud Name",
+                "Sellercloud Email",
+                "Bigin Contact ID",
+                "Bigin Name",
+                "Bigin Email",
+                "Status",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  bigin_contact_id_email,
+                  bigin_name_email,
+                  bigin_email_match,
+                  match_status
+                from customer_bigin_comparison_v2
+                where match_status = 'EMAIL_MATCH_NAME_DIFFERENT'
+                order by sellercloud_name;
+            """,
+        },
+        "name-match-email-different": {
+            "filename": "name_match_email_different.xlsx",
+            "headers": [
+                "Sellercloud Customer ID",
+                "Sellercloud Name",
+                "Sellercloud Email",
+                "Bigin Contact ID",
+                "Bigin Name",
+                "Bigin Email",
+                "Status",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  bigin_contact_id_name,
+                  bigin_name_match,
+                  bigin_email_name_match,
+                  match_status
+                from customer_bigin_comparison_v2
+                where match_status = 'NAME_MATCH_EMAIL_DIFFERENT'
+                order by sellercloud_name;
+            """,
+        },
+        "pending-review": {
+            "filename": "pending_review.xlsx",
+            "headers": [
+                "Sellercloud Customer ID",
+                "Sellercloud Name",
+                "Sellercloud Email",
+                "Sales Man",
+                "Phone",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  sales_man,
+                  phone_1
+                from customer_bigin_pending_review
+                order by sellercloud_name;
+            """,
+        },
+    }
+
+    if report_type not in report_queries:
+        return {"error": "Invalid report type"}
+
+    report = report_queries[report_type]
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(report["sql"])
+            rows = cur.fetchall()
+
+    return build_excel_response(
+        report["filename"],
+        report["headers"],
+        rows,
+    )

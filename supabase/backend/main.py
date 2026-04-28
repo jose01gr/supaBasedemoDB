@@ -84,3 +84,38 @@ def get_pending_review():
         }
         for row in rows
     ]
+    
+@app.get("/snapshots")
+def get_snapshots():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                select
+                  id,
+                  snapshot_name,
+                  total_sellercloud_customers,
+                  total_bigin_contacts,
+                  email_and_name_match,
+                  email_match_name_different,
+                  name_match_email_different,
+                  pending_review,
+                  created_at
+                from customer_match_snapshots
+                order by created_at desc;
+            """)
+            rows = cur.fetchall()
+
+    return [
+        {
+            "id": row[0],
+            "snapshot_name": row[1],
+            "total_sellercloud_customers": row[2],
+            "total_bigin_contacts": row[3],
+            "email_and_name_match": row[4],
+            "email_match_name_different": row[5],
+            "name_match_email_different": row[6],
+            "pending_review": row[7],
+            "created_at": row[8],
+        }
+        for row in rows
+    ]

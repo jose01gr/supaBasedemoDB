@@ -3,17 +3,20 @@ import { useEffect, useState } from 'react'
 function App() {
   const [summary, setSummary] = useState([])
   const [pendingReview, setPendingReview] = useState([])
+  const [snapshots, setSnapshots] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
-    Promise.all([
+   Promise.all([
       fetch('http://127.0.0.1:8000/summary').then((response) => response.json()),
       fetch('http://127.0.0.1:8000/pending-review').then((response) => response.json()),
+      fetch('http://127.0.0.1:8000/snapshots').then((response) => response.json()),
     ])
-      .then(([summaryData, pendingData]) => {
+      .then(([summaryData, pendingData, snapshotsData]) => {
         setSummary(summaryData)
         setPendingReview(pendingData)
+        setSnapshots(snapshotsData)
         setLoading(false)
       })
       .catch((error) => {
@@ -128,6 +131,52 @@ function App() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+                        <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Snapshots</h2>
+                  <p className="text-sm text-slate-500">
+                    Histórico de comparaciones guardadas.
+                  </p>
+                </div>
+
+                <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
+                  {snapshots.length} snapshots
+                </div>
+              </div>
+
+              <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
+                <table className="min-w-full divide-y divide-slate-200 text-sm">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Sellercloud</TableHead>
+                      <TableHead>Bigin</TableHead>
+                      <TableHead>Match exacto</TableHead>
+                      <TableHead>Pendientes</TableHead>
+                      <TableHead>Fecha</TableHead>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {snapshots.map((snapshot) => (
+                      <tr key={snapshot.id} className="hover:bg-slate-50">
+                        <TableCell>{snapshot.id}</TableCell>
+                        <TableCell>{snapshot.snapshot_name}</TableCell>
+                        <TableCell>{snapshot.total_sellercloud_customers}</TableCell>
+                        <TableCell>{snapshot.total_bigin_contacts}</TableCell>
+                        <TableCell>{snapshot.email_and_name_match}</TableCell>
+                        <TableCell>{snapshot.pending_review}</TableCell>
+                        <TableCell>
+                          {new Date(snapshot.created_at).toLocaleString()}
+                        </TableCell>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </>

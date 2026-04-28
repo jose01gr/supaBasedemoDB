@@ -4,6 +4,7 @@ function App() {
   const [summary, setSummary] = useState([])
   const [pendingReview, setPendingReview] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     Promise.all([
@@ -24,6 +25,18 @@ function App() {
   const getValue = (metric) => {
     return summary.find((item) => item.metric === metric)?.value ?? '-'
   }
+
+  const filteredPendingReview = pendingReview.filter((customer) => {
+  const search = searchTerm.toLowerCase()
+
+  return (
+    customer.sellercloud_customer_id?.toLowerCase().includes(search) ||
+    customer.sellercloud_name?.toLowerCase().includes(search) ||
+    customer.sellercloud_email?.toLowerCase().includes(search) ||
+    customer.sales_man?.toLowerCase().includes(search) ||
+    customer.phone_1?.toLowerCase().includes(search)
+  )
+})
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
@@ -72,8 +85,18 @@ function App() {
                 </div>
 
                 <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-                  {pendingReview.length} registros
+                  {filteredPendingReview.length} de {pendingReview.length} registros
                 </div>
+              </div>
+
+              <div className="mt-4">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Buscar por nombre, email, vendedor, teléfono o ID..."
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                />
               </div>
 
               <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
@@ -90,7 +113,7 @@ function App() {
                     </thead>
 
                     <tbody className="divide-y divide-slate-100 bg-white">
-                      {pendingReview.map((customer) => (
+                      {filteredPendingReview.map((customer) => (
                         <tr
                           key={customer.sellercloud_customer_id}
                           className="hover:bg-slate-50"

@@ -84,7 +84,7 @@ def get_pending_review():
         }
         for row in rows
     ]
-    
+
 @app.get("/snapshots")
 def get_snapshots():
     with get_connection() as conn:
@@ -116,6 +116,47 @@ def get_snapshots():
             "name_match_email_different": row[6],
             "pending_review": row[7],
             "created_at": row[8],
+        }
+        for row in rows
+    ]
+
+@app.get("/comparison-results")
+def get_comparison_results():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  sales_man,
+                  phone_1,
+                  bigin_contact_id_email,
+                  bigin_name_email,
+                  bigin_email_match,
+                  bigin_contact_id_name,
+                  bigin_name_match,
+                  bigin_email_name_match,
+                  match_status
+                from customer_bigin_comparison_v2
+                order by match_status, sellercloud_name;
+            """)
+            rows = cur.fetchall()
+
+    return [
+        {
+            "sellercloud_customer_id": row[0],
+            "sellercloud_name": row[1],
+            "sellercloud_email": row[2],
+            "sales_man": row[3],
+            "phone_1": row[4],
+            "bigin_contact_id_email": row[5],
+            "bigin_name_email": row[6],
+            "bigin_email_match": row[7],
+            "bigin_contact_id_name": row[8],
+            "bigin_name_match": row[9],
+            "bigin_email_name_match": row[10],
+            "match_status": row[11],
         }
         for row in rows
     ]

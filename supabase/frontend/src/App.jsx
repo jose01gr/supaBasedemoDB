@@ -4,6 +4,8 @@ function App() {
   const [summary, setSummary] = useState([])
   const [pendingReview, setPendingReview] = useState([])
   const [snapshots, setSnapshots] = useState([])
+  const [comparisonResults, setComparisonResults] = useState([])
+  const [selectedStatus, setSelectedStatus] = useState('ALL')
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -12,11 +14,13 @@ function App() {
       fetch('http://127.0.0.1:8000/summary').then((response) => response.json()),
       fetch('http://127.0.0.1:8000/pending-review').then((response) => response.json()),
       fetch('http://127.0.0.1:8000/snapshots').then((response) => response.json()),
+      fetch('http://127.0.0.1:8000/comparison-results').then((response) => response.json()),
     ])
-      .then(([summaryData, pendingData, snapshotsData]) => {
+      .then(([summaryData, pendingData, snapshotsData, comparisonData]) => {
         setSummary(summaryData)
         setPendingReview(pendingData)
         setSnapshots(snapshotsData)
+        setComparisonResults(comparisonData)
         setLoading(false)
       })
       .catch((error) => {
@@ -39,6 +43,14 @@ function App() {
     customer.sales_man?.toLowerCase().includes(search) ||
     customer.phone_1?.toLowerCase().includes(search)
   )
+})
+
+const filteredComparisonResults = comparisonResults.filter((customer) => {
+  if (selectedStatus === 'ALL') {
+    return true
+  }
+
+  return customer.match_status === selectedStatus
 })
 
   return (
@@ -75,6 +87,87 @@ function App() {
                 <MiniCard title="Email and name match" value={getValue('Email and name match')} />
                 <MiniCard title="Email match, name different" value={getValue('Email match, name different')} />
                 <MiniCard title="Name match, email different" value={getValue('Name match, email different')} />
+              </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <StatusButton
+                  label="All"
+                  status="ALL"
+                  selectedStatus={selectedStatus}
+                  setSelectedStatus={setSelectedStatus}
+                />
+                <StatusButton
+                  label="Email + Name"
+                  status="EMAIL_AND_NAME_MATCH"
+                  selectedStatus={selectedStatus}
+                  setSelectedStatus={setSelectedStatus}
+                />
+                <StatusButton
+                  label="Email match / Name different"
+                  status="EMAIL_MATCH_NAME_DIFFERENT"
+                  selectedStatus={selectedStatus}
+                  setSelectedStatus={setSelectedStatus}
+                />
+                <StatusButton
+                  label="Name match / Email different"
+                  status="NAME_MATCH_EMAIL_DIFFERENT"
+                  selectedStatus={selectedStatus}
+                  setSelectedStatus={setSelectedStatus}
+                />
+                <StatusButton
+                  label="No match"
+                  status="NO_MATCH_IN_BIGIN"
+                  selectedStatus={selectedStatus}
+                  setSelectedStatus={setSelectedStatus}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Comparison results</h2>
+                  <p className="text-sm text-slate-500">
+                    Resultados filtrados por estado de coincidencia.
+                  </p>
+                </div>
+
+                <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
+                  {filteredComparisonResults.length} registros
+                </div>
+              </div>
+
+              <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
+                <div className="max-h-[360px] overflow-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="sticky top-0 bg-slate-50">
+                      <tr>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Sellercloud Name</TableHead>
+                        <TableHead>Sellercloud Email</TableHead>
+                        <TableHead>Bigin Name</TableHead>
+                        <TableHead>Bigin Email</TableHead>
+                        <TableHead>Status</TableHead>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {filteredComparisonResults.map((customer) => (
+                        <tr key={`${customer.sellercloud_customer_id}-${customer.match_status}`} className="hover:bg-slate-50">
+                          <TableCell>{customer.sellercloud_customer_id}</TableCell>
+                          <TableCell>{customer.sellercloud_name}</TableCell>
+                          <TableCell>{customer.sellercloud_email}</TableCell>
+                          <TableCell>
+                            {customer.bigin_name_email || customer.bigin_name_match || '-'}
+                          </TableCell>
+                          <TableCell>
+                            {customer.bigin_email_match || customer.bigin_email_name_match || '-'}
+                          </TableCell>
+                          <TableCell>{customer.match_status}</TableCell>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
@@ -217,6 +310,23 @@ function TableCell({ children }) {
     <td className="whitespace-nowrap px-4 py-3 text-slate-700">
       {children}
     </td>
+  )
+}
+
+function StatusButton({ label, status, selectedStatus, setSelectedStatus }) {
+  const isActive = selectedStatus === status
+
+  return (
+    <button
+      onClick={() => setSelectedStatus(status)}
+      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+        isActive
+          ? 'bg-slate-900 text-white'
+          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+      }`}
+    >
+      {label}
+    </button>
   )
 }
 

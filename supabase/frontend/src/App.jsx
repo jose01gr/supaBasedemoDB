@@ -37,6 +37,19 @@ function App() {
   window.open(`http://127.0.0.1:8000/reports/${reportType}`, '_blank')
 }
 
+const createSnapshot = async () => {
+  const response = await fetch('http://127.0.0.1:8000/snapshots', {
+    method: 'POST',
+  })
+
+  const newSnapshot = await response.json()
+
+  setSnapshots((currentSnapshots) => [
+    newSnapshot,
+    ...currentSnapshots,
+  ])
+}
+
   const filteredPendingReview = pendingReview.filter((customer) => {
   const search = searchTerm.toLowerCase()
 
@@ -283,8 +296,17 @@ const filteredComparisonResults = comparisonResults.filter((customer) => {
                   </p>
                 </div>
 
-                <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-                  {snapshots.length} snapshots
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={createSnapshot}
+                    className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+                  >
+                    Create snapshot
+                  </button>
+
+                  <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
+                    {snapshots.length} snapshots
+                  </div>
                 </div>
               </div>
 

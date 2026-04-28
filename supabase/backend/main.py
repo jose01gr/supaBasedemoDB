@@ -343,3 +343,40 @@ def download_report(report_type: str):
         report["headers"],
         rows,
     )
+
+@app.post("/snapshots")
+def create_snapshot():
+    snapshot_name = "dashboard_customer_match_snapshot"
+
+    sql = """
+    insert into customer_match_snapshots (
+      snapshot_name,
+      total_sellercloud_customers,
+      total_bigin_contacts,
+      email_and_name_match,
+      email_match_name_different,
+      name_match_email_different,
+      pending_review
+    )
+    select
+      %s,
+      (select count(*) from sellercloud_customers),
+      (select count(*) from bigin_contacts),
+      (select count(*) from customer_bigin_comparison_v2 where match_status = 'EMAIL_AND_NAME_MATCH'),
+      (select count(*) from customer_bigin_comparison_v2 where match_status = 'EMAIL_MATCH_NAME_DIFFERENT'),
+      (select count(*) from customer_bigin_comparison_v2 where match_status = 'NAME_MATCH_EMAIL_DIFFERENT'),
+      (select count(*) from customer_bigin_pending_review)
+    returning id, snapshot_name, created_at;
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (snapshot_name,))
+            row = cur.fetchone()
+            conn.commit()
+
+    return {
+        "id": row[0],
+        "snapshot_name": row[1],
+        "created_at": row[2],
+    }

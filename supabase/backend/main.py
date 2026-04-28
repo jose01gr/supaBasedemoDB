@@ -1,5 +1,7 @@
 import os
 from io import BytesIO
+import csv
+from io import StringIO
 
 import psycopg
 from dotenv import load_dotenv
@@ -48,6 +50,25 @@ def build_excel_response(filename, headers, rows):
     return StreamingResponse(
         stream,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
+    )
+
+def build_csv_response(filename, headers, rows):
+    stream = StringIO()
+    writer = csv.writer(stream)
+
+    writer.writerow(headers)
+
+    for row in rows:
+        writer.writerow(row)
+
+    stream.seek(0)
+
+    return StreamingResponse(
+        iter([stream.getvalue()]),
+        media_type="text/csv",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"'
         },
@@ -380,3 +401,247 @@ def create_snapshot():
         "snapshot_name": row[1],
         "created_at": row[2],
     }
+
+@app.get("/excel/pending-review.csv")
+def excel_pending_review_csv():
+    headers = [
+        "sellercloud_customer_id",
+        "sellercloud_name",
+        "sellercloud_email",
+        "sales_man",
+        "phone_1",
+    ]
+
+    sql = """
+        select
+          sellercloud_customer_id,
+          sellercloud_name,
+          sellercloud_email,
+          sales_man,
+          phone_1
+        from customer_bigin_pending_review
+        order by sellercloud_name;
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+
+    return build_csv_response(
+        "pending_review.csv",
+        headers,
+        rows,
+    )
+
+@app.get("/excel/{report_type}.csv")
+def excel_dynamic_report_csv(report_type: str):
+    report_queries = {
+        "sellercloud-customers": {
+            "filename": "sellercloud_customers.csv",
+            "headers": [
+                "sellercloud_customer_id",
+                "customer_name",
+                "email",
+                "sales_man",
+                "phone_1",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  customer_name,
+                  email,
+                  sales_man,
+                  phone_1
+                from sellercloud_customers
+                order by customer_name;
+            """,
+        },
+        "bigin-active-contacts": {
+            "filename": "bigin_active_contacts.csv",
+            "headers": [
+                "bigin_contact_id",
+                "full_name",
+                "email",
+                "phone",
+                "mobile",
+                "owner_name",
+            ],
+            "sql": """
+                select
+                  bigin_contact_id,
+                  full_name,
+                  email,
+                  phone,
+                  mobile,
+                  owner_name
+                from bigin_contacts
+                order by full_name;
+            """,
+        },
+        "email-and-name-match": {
+            "filename": "email_and_name_match.csv",
+            "headers": [
+                "sellercloud_customer_id",
+                "sellercloud_name",
+                "sellercloud_email",
+                "bigin_contact_id",
+                "bigin_name",
+                "bigin_email",
+                "match_status",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  bigin_contact_id_email,
+                  bigin_name_email,
+                  bigin_email_match,
+                  match_status
+                from customer_bigin_comparison_v2
+                where match_status = 'EMAIL_AND_NAME_MATCH'
+                order by sellercloud_name;
+            """,
+        },
+        "email-match-name-different": {
+            "filename": "email_match_name_different.csv",
+            "headers": [
+                "sellercloud_customer_id",
+                "sellercloud_name",
+                "sellercloud_email",
+                "bigin_contact_id",
+                "bigin_name",
+                "bigin_email",
+                "match_status",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  bigin_contact_id_email,
+                  bigin_name_email,
+                  bigin_email_match,
+                  match_status
+                from customer_bigin_comparison_v2
+                where match_status = 'EMAIL_MATCH_NAME_DIFFERENT'
+                order by sellercloud_name;
+            """,
+        },
+        "name-match-email-different": {
+            "filename": "name_match_email_different.csv",
+            "headers": [
+                "sellercloud_customer_id",
+                "sellercloud_name",
+                "sellercloud_email",
+                "bigin_contact_id",
+                "bigin_name",
+                "bigin_email",
+                "match_status",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  bigin_contact_id_name,
+                  bigin_name_match,
+                  bigin_email_name_match,
+                  match_status
+                from customer_bigin_comparison_v2
+                where match_status = 'NAME_MATCH_EMAIL_DIFFERENT'
+                order by sellercloud_name;
+            """,
+        },
+        "pending-review": {
+            "filename": "pending_review.csv",
+            "headers": [
+                "sellercloud_customer_id",
+                "sellercloud_name",
+                "sellercloud_email",
+                "sales_man",
+                "phone_1",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  sales_man,
+                  phone_1
+                from customer_bigin_pending_review
+                order by sellercloud_name;
+            """,
+        },
+        "comparison-results": {
+            "filename": "comparison_results.csv",
+            "headers": [
+                "sellercloud_customer_id",
+                "sellercloud_name",
+                "sellercloud_email",
+                "sales_man",
+                "phone_1",
+                "bigin_name",
+                "bigin_email",
+                "match_status",
+            ],
+            "sql": """
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  sales_man,
+                  phone_1,
+                  coalesce(bigin_name_email, bigin_name_match) as bigin_name,
+                  coalesce(bigin_email_match, bigin_email_name_match) as bigin_email,
+                  match_status
+                from customer_bigin_comparison_v2
+                order by match_status, sellercloud_name;
+            """,
+        },
+        "snapshots": {
+            "filename": "snapshots.csv",
+            "headers": [
+                "id",
+                "snapshot_name",
+                "total_sellercloud_customers",
+                "total_bigin_contacts",
+                "email_and_name_match",
+                "email_match_name_different",
+                "name_match_email_different",
+                "pending_review",
+                "created_at",
+            ],
+            "sql": """
+                select
+                  id,
+                  snapshot_name,
+                  total_sellercloud_customers,
+                  total_bigin_contacts,
+                  email_and_name_match,
+                  email_match_name_different,
+                  name_match_email_different,
+                  pending_review,
+                  created_at
+                from customer_match_snapshots
+                order by created_at desc;
+            """,
+        },
+    }
+
+    if report_type not in report_queries:
+        return {"error": "Invalid report type"}
+
+    report = report_queries[report_type]
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(report["sql"])
+            rows = cur.fetchall()
+
+    return build_csv_response(
+        report["filename"],
+        report["headers"],
+        rows,
+    )

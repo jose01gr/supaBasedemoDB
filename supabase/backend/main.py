@@ -51,9 +51,36 @@ def get_summary():
                     else 99
                   end;
             """)
-            rows = cur.fetchall()
+            rows = cur.fetchall() 
 
     return [
         {"metric": row[0], "value": row[1]}
+        for row in rows
+    ]
+
+@app.get("/pending-review")
+def get_pending_review():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                select
+                  sellercloud_customer_id,
+                  sellercloud_name,
+                  sellercloud_email,
+                  sales_man,
+                  phone_1
+                from customer_bigin_pending_review
+                order by sellercloud_name;
+            """)
+            rows = cur.fetchall()
+
+    return [
+        {
+            "sellercloud_customer_id": row[0],
+            "sellercloud_name": row[1],
+            "sellercloud_email": row[2],
+            "sales_man": row[3],
+            "phone_1": row[4],
+        }
         for row in rows
     ]

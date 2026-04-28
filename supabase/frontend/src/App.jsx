@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react'
 
 function App() {
   const [summary, setSummary] = useState([])
+  const [pendingReview, setPendingReview] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/summary')
-      .then((response) => response.json())
-      .then((data) => {
-        setSummary(data)
+    Promise.all([
+      fetch('http://127.0.0.1:8000/summary').then((response) => response.json()),
+      fetch('http://127.0.0.1:8000/pending-review').then((response) => response.json()),
+    ])
+      .then(([summaryData, pendingData]) => {
+        setSummary(summaryData)
+        setPendingReview(pendingData)
         setLoading(false)
       })
       .catch((error) => {
-        console.error('Error loading summary:', error)
+        console.error('Error loading dashboard data:', error)
         setLoading(false)
       })
   }, [])
@@ -43,55 +47,63 @@ function App() {
         ) : (
           <>
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl bg-white p-6 shadow-sm">
-                <p className="text-sm text-slate-500">Sellercloud customers</p>
-                <p className="mt-2 text-3xl font-bold">
-                  {getValue('Sellercloud customers')}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-white p-6 shadow-sm">
-                <p className="text-sm text-slate-500">Bigin active contacts</p>
-                <p className="mt-2 text-3xl font-bold">
-                  {getValue('Bigin active contacts')}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-white p-6 shadow-sm">
-                <p className="text-sm text-slate-500">Pending review</p>
-                <p className="mt-2 text-3xl font-bold">
-                  {getValue('Pending review')}
-                </p>
-              </div>
+              <SummaryCard title="Sellercloud customers" value={getValue('Sellercloud customers')} />
+              <SummaryCard title="Bigin active contacts" value={getValue('Bigin active contacts')} />
+              <SummaryCard title="Pending review" value={getValue('Pending review')} />
             </div>
 
             <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
               <h2 className="text-xl font-semibold">Match results</h2>
 
               <div className="mt-4 grid gap-4 md:grid-cols-3">
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <p className="text-sm text-slate-500">Email and name match</p>
-                  <p className="mt-2 text-2xl font-bold">
-                    {getValue('Email and name match')}
+                <MiniCard title="Email and name match" value={getValue('Email and name match')} />
+                <MiniCard title="Email match, name different" value={getValue('Email match, name different')} />
+                <MiniCard title="Name match, email different" value={getValue('Name match, email different')} />
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Pending review</h2>
+                  <p className="text-sm text-slate-500">
+                    Clientes de Sellercloud sin match claro en Bigin.
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <p className="text-sm text-slate-500">
-                    Email match, name different
-                  </p>
-                  <p className="mt-2 text-2xl font-bold">
-                    {getValue('Email match, name different')}
-                  </p>
+                <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
+                  {pendingReview.length} registros
                 </div>
+              </div>
 
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <p className="text-sm text-slate-500">
-                    Name match, email different
-                  </p>
-                  <p className="mt-2 text-2xl font-bold">
-                    {getValue('Name match, email different')}
-                  </p>
+              <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
+                <div className="max-h-[420px] overflow-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="sticky top-0 bg-slate-50">
+                      <tr>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Vendedor</TableHead>
+                        <TableHead>Teléfono</TableHead>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {pendingReview.map((customer) => (
+                        <tr
+                          key={customer.sellercloud_customer_id}
+                          className="hover:bg-slate-50"
+                        >
+                          <TableCell>{customer.sellercloud_customer_id}</TableCell>
+                          <TableCell>{customer.sellercloud_name}</TableCell>
+                          <TableCell>{customer.sellercloud_email}</TableCell>
+                          <TableCell>{customer.sales_man || '-'}</TableCell>
+                          <TableCell>{customer.phone_1 || '-'}</TableCell>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -99,6 +111,40 @@ function App() {
         )}
       </div>
     </div>
+  )
+}
+
+function SummaryCard({ title, value }) {
+  return (
+    <div className="rounded-2xl bg-white p-6 shadow-sm">
+      <p className="text-sm text-slate-500">{title}</p>
+      <p className="mt-2 text-3xl font-bold">{value}</p>
+    </div>
+  )
+}
+
+function MiniCard({ title, value }) {
+  return (
+    <div className="rounded-xl border border-slate-200 p-4">
+      <p className="text-sm text-slate-500">{title}</p>
+      <p className="mt-2 text-2xl font-bold">{value}</p>
+    </div>
+  )
+}
+
+function TableHead({ children }) {
+  return (
+    <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-700">
+      {children}
+    </th>
+  )
+}
+
+function TableCell({ children }) {
+  return (
+    <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+      {children}
+    </td>
   )
 }
 

@@ -87,7 +87,7 @@ def main():
         "Content-Type": "application/json",
     }
 
-    with psycopg.connect(DB_URL) as conn:
+    with psycopg.connect(DB_URL, prepare_threshold=None) as conn:
         customer_ids = get_customer_ids(conn)
         print(f"Customers to enrich: {len(customer_ids)}")
 
